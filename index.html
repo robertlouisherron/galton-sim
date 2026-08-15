@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>College of Health Professions Galton Board</title>
+  <style>
+    :root {
+      --um-purple: #4a154b;
+      --um-purple-dark: #370d38;
+      --um-gold: #c59b27;
+      --um-gold-light: #fdf8eb;
+      --um-gold-border: #e6c875;
+      --bg-slate: #f7f6f9;
+      --card-bg: #ffffff;
+      --text-main: #2b1f2d;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg-slate);
+      color: var(--text-main);
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 2px solid var(--um-purple);
+      border-radius: 12px;
+      padding: 20px 24px;
+      max-width: 520px;
+      width: 100%;
+      box-shadow: 0 6px 16px rgba(74, 21, 75, 0.12);
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    .logo-container {
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .logo-container img {
+      max-width: 100%;
+      height: auto;
+      max-height: 70px;
+      object-fit: contain;
+    }
+
+    h2 {
+      margin: 0 0 16px 0;
+      color: var(--um-purple);
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+      text-align: left;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--um-purple);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      padding: 8px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: 1.5px solid var(--um-purple);
+      background: #ffffff;
+      color: var(--text-main);
+      box-sizing: border-box;
+      outline: none;
+    }
+
+    input[type="number"]:focus {
+      border-color: var(--um-gold);
+      box-shadow: 0 0 0 2px rgba(197, 155, 39, 0.25);
+    }
+
+    button {
+      width: 100%;
+      background: var(--um-purple);
+      color: #ffffff;
+      border: 2px solid var(--um-gold);
+      padding: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 4px 0 14px 0;
+      transition: background 0.15s ease, transform 0.05s ease;
+    }
+
+    button:hover {
+      background: var(--um-purple-dark);
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .chart-container {
+      background: #faf9fb;
+      border: 1px dashed var(--um-purple);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 14px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 140px;
+      display: block;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      background: var(--um-gold-light);
+      border: 1px solid var(--um-gold-border);
+      border-radius: 8px;
+      padding: 10px 4px;
+      gap: 8px 4px;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .stat-label {
+      font-size: 9px;
+      color: var(--um-purple);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    .stat-val {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--um-purple);
+      margin-top: 2px;
+    }
+
+    .formula-box {
+      margin-top: 12px;
+      background: #ffffff;
+      border: 1px solid var(--um-gold-border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 10px;
+      color: #4a154b;
+      line-height: 1.4;
+    }
+
+    .formula-box strong {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--um-purple);
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo-container">
+    <img src="CHP.png" alt="University of Montevallo College of Health Professions">
+  </div>
+  
+  <h2>Galton Board Simulator</h2>
+
+  <div class="input-grid">
+    <div class="input-group">
+      <label for="numObs">Observations (1–100,000)</label>
+      <input type="number" id="numObs" value="5000" min="1" max="100000">
+    </div>
+    <div class="input-group">
+      <label for="rangeVal">Range / Rows (1–500)</label>
+      <input type="number" id="rangeVal" value="30" min="1" max="500">
+    </div>
+  </div>
+
+  <button type="button" id="runBtn">Run Galton Board</button>
+
+  <div class="chart-container">
+    <canvas id="distCanvas" width="460" height="140"></canvas>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-item">
+      <div class="stat-label">Obs (n)</div>
+      <div class="stat-val" id="statN">-</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Mean</div>
+      <div class="stat-val" id="statMean">-</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Median</div>
+      <div class="stat-val" id="statMed">-</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Mode</div>
+      <div class="stat-val" id="statMode">-</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Range</div>
+      <div class="stat-val" id="statRange">-</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Std Dev (s)</div>
+      <div class="stat-val" id="statSD">-</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Skewness</div>
+      <div class="stat-val" id="statSkew">-</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Kurtosis</div>
+      <div class="stat-val" id="statKurt">-</div>
+    </div>
+  </div>
+
+  <div class="formula-box">
+    <strong>Formulas Used:</strong>
+    • <em>Sample Skewness (Fisher-Pearson):</em> g₁ = [n / ((n-1)(n-2))] × Σ((x - x̄)/s)³<br>
+    • <em>Sample Excess Kurtosis:</em> g₂ = [n(n+1) / ((n-1)(n-2)(n-3))] × Σ((x - x̄)/s)⁴ - [3(n-1)² / ((n-2)(n-3))]
+  </div>
+</div>
+
+<script>
+  function runGaltonSimulation() {
+    var n = parseInt(document.getElementById("numObs").value, 10);
+    var R = parseInt(document.getElementById("rangeVal").value, 10);
+
+    if (isNaN(n) || n < 1 || n > 100000) {
+      alert("Please enter a valid observation count between 1 and 100,000.");
+      return;
+    }
+    if (isNaN(R) || R < 1 || R > 500) {
+      alert("Please enter a range/rows value between 1 and 500.");
+      return;
+    }
+
+    var counts = new Int32Array(R + 1);
+    var sum = 0;
+
+    // Fast Normal approximation when R > 40, exact Bernoulli trials when R <= 40
+    for (var i = 0; i < n; i++) {
+      var k = 0;
+      if (R <= 40) {
+        for (var r = 0; r < R; r++) {
+          if (Math.random() < 0.5) k++;
+        }
+      } else {
+        var u1 = Math.random();
+        var u2 = Math.random();
+        while (u1 === 0) u1 = Math.random();
+        var z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+        k = Math.round((R / 2) + z * (Math.sqrt(R) / 2));
+        if (k < 0) k = 0;
+        if (k > R) k = R;
+      }
+      counts[k]++;
+      sum += k;
+    }
+
+    var mean = sum / n;
+
+    // Median, Mode, Min, Max
+    var median = 0;
+    var runningCount = 0;
+    var medianTarget = n / 2;
+    var foundMed = false;
+
+    var mode = 0;
+    var maxFreq = -1;
+    var minVal = -1;
+    var maxVal = -1;
+
+    for (var j = 0; j <= R; j++) {
+      var freq = counts[j];
+      if (freq > 0) {
+        if (minVal === -1) minVal = j;
+        maxVal = j;
+      }
+      if (freq > maxFreq) {
+        maxFreq = freq;
+        mode = j;
+      }
+      runningCount += freq;
+      if (!foundMed && runningCount >= medianTarget) {
+        median = j;
+        foundMed = true;
+      }
+    }
+
+    // Second, Third, and Fourth Central Moments
+    var sumSq = 0;
+    var sumCube = 0;
+    var sumQuad = 0;
+
+    for (var val = 0; val <= R; val++) {
+      var count = counts[val];
+      if (count > 0) {
+        var diff = val - mean;
+        sumSq += count * Math.pow(diff, 2);
+        sumCube += count * Math.pow(diff, 3);
+        sumQuad += count * Math.pow(diff, 4);
+      }
+    }
+
+    var s2 = n > 1 ? sumSq / (n - 1) : 0;
+    var s = Math.sqrt(s2);
+
+    var skewness = "N/A";
+    var excessKurtosis = "N/A";
+
+    if (n > 2 && s > 0) {
+      var g1 = (n / ((n - 1) * (n - 2))) * (sumCube / Math.pow(s, 3));
+      skewness = g1.toFixed(3);
+    }
+
+    if (n > 3 && s > 0) {
+      var t1 = (n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3));
+      var t2 = sumQuad / Math.pow(s, 4);
+      var t3 = (3 * Math.pow(n - 1, 2)) / ((n - 2) * (n - 3));
+      var g2 = (t1 * t2) - t3;
+      excessKurtosis = g2.toFixed(3);
+    }
+
+    document.getElementById("statN").textContent = n;
+    document.getElementById("statMean").textContent = mean.toFixed(2);
+    document.getElementById("statMed").textContent = median;
+    document.getElementById("statMode").textContent = mode;
+    document.getElementById("statRange").textContent = (maxVal - minVal) + " (" + minVal + "–" + maxVal + ")";
+    document.getElementById("statSD").textContent = n > 1 ? s.toFixed(2) : "N/A";
+    document.getElementById("statSkew").textContent = skewness;
+    document.getElementById("statKurt").textContent = excessKurtosis;
+
+    // Draw Histogram
+    var canvas = document.getElementById("distCanvas");
+    var ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    var barWidth = canvas.width / (R + 1);
+    ctx.fillStyle = "#4a154b";
+
+    for (var b = 0; b <= R; b++) {
+      if (counts[b] > 0 && maxFreq > 0) {
+        var barHeight = (counts[b] / maxFreq) * (canvas.height - 12);
+        var x = b * barWidth;
+        var y = canvas.height - barHeight;
+        ctx.fillRect(x, y, Math.max(1, barWidth - 0.5), barHeight);
+      }
+    }
+  }
+
+  document.getElementById("runBtn").onclick = runGaltonSimulation;
+  runGaltonSimulation();
+</script>
+
+</body>
+</html>
