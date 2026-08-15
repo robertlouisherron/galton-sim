@@ -62,8 +62,8 @@
 
     .input-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
       margin-bottom: 14px;
       text-align: left;
     }
@@ -113,12 +113,17 @@
       transition: background 0.15s ease, transform 0.05s ease;
     }
 
-    button:hover {
+    button:hover:not(:disabled) {
       background: var(--um-purple-dark);
     }
 
-    button:active {
+    button:active:not(:disabled) {
       transform: scale(0.98);
+    }
+
+    button:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
     }
 
     .chart-container {
@@ -197,12 +202,16 @@
 
   <div class="input-grid">
     <div class="input-group">
-      <label for="numObs">Observations (1–100,000)</label>
+      <label for="numObs">Obs (1–100,000)</label>
       <input type="number" id="numObs" value="5000" min="1" max="100000">
     </div>
     <div class="input-group">
-      <label for="rangeVal">Range / Rows (1–500)</label>
-      <input type="number" id="rangeVal" value="30" min="1" max="500">
+      <label for="minVal">Min Value</label>
+      <input type="number" id="minVal" value="1">
+    </div>
+    <div class="input-group">
+      <label for="maxVal">Max Value</label>
+      <input type="number" id="maxVal" value="100">
     </div>
   </div>
 
@@ -255,40 +264,56 @@
 </div>
 
 <script>
+  var animFrameId = null;
+
   function runGaltonSimulation() {
     var n = parseInt(document.getElementById("numObs").value, 10);
-    var R = parseInt(document.getElementById("rangeVal").value, 10);
+    var min = parseInt(document.getElementById("minVal").value, 10);
+    var max = parseInt(document.getElementById("maxVal").value, 10);
+    var btn = document.getElementById("runBtn");
 
     if (isNaN(n) || n < 1 || n > 100000) {
       alert("Please enter a valid observation count between 1 and 100,000.");
       return;
     }
-    if (isNaN(R) || R < 1 || R > 500) {
-      alert("Please enter a range/rows value between 1 and 500.");
+    if (isNaN(min) || isNaN(max)) {
+      alert("Please enter valid minimum and maximum values.");
+      return;
+    }
+    if (min >= max) {
+      alert("Minimum value must be strictly less than Maximum value.");
       return;
     }
 
-    var counts = new Int32Array(R + 1);
-    var sum = 0;
+    if (animFrameId) {
+      cancelAnimationFrame(animFrameId);
+    }
 
-    // Fast Normal approximation when R > 40, exact Bernoulli trials when R <= 40
+    btn.disabled = true;
+    btn.textContent = "Dropping Balls...";
+
+    var bins = 50;
+    var finalCounts = new Int32Array(bins + 1);
+    var sum = 0;
+    var span = max - min;
+
     for (var i = 0; i < n; i++) {
-      var k = 0;
-      if (R <= 40) {
-        for (var r = 0; r < R; r++) {
-          if (Math.random() < 0.5) k++;
-        }
-      } else {
-        var u1 = Math.random();
-        var u2 = Math.random();
-        while (u1 === 0) u1 = Math.random();
-        var z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-        k = Math.round((R / 2) + z * (Math.sqrt(R) / 2));
-        if (k < 0) k = 0;
-        if (k > R) k = R;
-      }
-      counts[k]++;
-      sum += k;
+      var u1 = Math.random();
+      var u2 = Math.random();
+      while (u1 === 0) u1 = Math.random();
+      var z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+
+      var normFraction = 0.5 + (z / 6.0);
+      if (normFraction < 0) normFraction = 0;
+      if (normFraction > 1) normFraction = 1;
+
+      var binIdx = Math.round(normFraction * bins);
+      if (binIdx < 0) binIdx = 0;
+      if (binIdx > bins) binIdx = bins;
+
+      finalCounts[binIdx]++;
+      var actualVal = min + (binIdx / bins) * span;
+      sum += actualVal;
     }
 
     var mean = sum / n;
@@ -299,40 +324,43 @@
     var medianTarget = n / 2;
     var foundMed = false;
 
-    var mode = 0;
-    var maxFreq = -1;
-    var minVal = -1;
-    var maxVal = -1;
+    var mode = min;
+    var maxFreq = 0;
+    var minValSample = null;
+    var maxValSample = null;
 
-    for (var j = 0; j <= R; j++) {
-      var freq = counts[j];
+    for (var j = 0; j <= bins; j++) {
+      var freq = finalCounts[j];
+      var valAtBin = min + (j / bins) * span;
+
       if (freq > 0) {
-        if (minVal === -1) minVal = j;
-        maxVal = j;
+        if (minValSample === null) minValSample = valAtBin;
+        maxValSample = valAtBin;
       }
       if (freq > maxFreq) {
         maxFreq = freq;
-        mode = j;
+        mode = valAtBin;
       }
       runningCount += freq;
       if (!foundMed && runningCount >= medianTarget) {
-        median = j;
+        median = valAtBin;
         foundMed = true;
       }
     }
 
-    // Second, Third, and Fourth Central Moments
+    // Moments for Variance, Skewness, Kurtosis
     var sumSq = 0;
     var sumCube = 0;
     var sumQuad = 0;
 
-    for (var val = 0; val <= R; val++) {
-      var count = counts[val];
-      if (count > 0) {
-        var diff = val - mean;
-        sumSq += count * Math.pow(diff, 2);
-        sumCube += count * Math.pow(diff, 3);
-        sumQuad += count * Math.pow(diff, 4);
+    for (var k = 0; k <= bins; k++) {
+      var cnt = finalCounts[k];
+      if (cnt > 0) {
+        var v = min + (k / bins) * span;
+        var diff = v - mean;
+        sumSq += cnt * Math.pow(diff, 2);
+        sumCube += cnt * Math.pow(diff, 3);
+        sumQuad += cnt * Math.pow(diff, 4);
       }
     }
 
@@ -355,31 +383,58 @@
       excessKurtosis = g2.toFixed(3);
     }
 
-    document.getElementById("statN").textContent = n;
-    document.getElementById("statMean").textContent = mean.toFixed(2);
-    document.getElementById("statMed").textContent = median;
-    document.getElementById("statMode").textContent = mode;
-    document.getElementById("statRange").textContent = (maxVal - minVal) + " (" + minVal + "–" + maxVal + ")";
-    document.getElementById("statSD").textContent = n > 1 ? s.toFixed(2) : "N/A";
-    document.getElementById("statSkew").textContent = skewness;
-    document.getElementById("statKurt").textContent = excessKurtosis;
+    var displayedRange = (maxValSample - minValSample).toFixed(1);
 
-    // Draw Histogram
+    // 3-Second Animation Setup
+    var duration = 3000; // 3 seconds
+    var startTime = null;
     var canvas = document.getElementById("distCanvas");
     var ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var barWidth = canvas.width / (bins + 1);
 
-    var barWidth = canvas.width / (R + 1);
-    ctx.fillStyle = "#4a154b";
+    function animate(currentTime) {
+      if (!startTime) startTime = currentTime;
+      var elapsed = currentTime - startTime;
+      var progress = Math.min(elapsed / duration, 1.0);
 
-    for (var b = 0; b <= R; b++) {
-      if (counts[b] > 0 && maxFreq > 0) {
-        var barHeight = (counts[b] / maxFreq) * (canvas.height - 12);
-        var x = b * barWidth;
-        var y = canvas.height - barHeight;
-        ctx.fillRect(x, y, Math.max(1, barWidth - 0.5), barHeight);
+      // Ease-out curve
+      var easeProgress = 1 - Math.pow(1 - progress, 2);
+
+      // Live Stats Counter
+      var currentN = Math.round(n * easeProgress);
+      document.getElementById("statN").textContent = currentN;
+      document.getElementById("statMean").textContent = mean.toFixed(2);
+      document.getElementById("statMed").textContent = median.toFixed(1);
+      document.getElementById("statMode").textContent = mode.toFixed(1);
+      document.getElementById("statRange").textContent = displayedRange;
+      document.getElementById("statSD").textContent = n > 1 ? s.toFixed(2) : "N/A";
+      document.getElementById("statSkew").textContent = skewness;
+      document.getElementById("statKurt").textContent = excessKurtosis;
+
+      // Draw Animated Bars
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#4a154b";
+
+      for (var b = 0; b <= bins; b++) {
+        if (finalCounts[b] > 0 && maxFreq > 0) {
+          var targetHeight = (finalCounts[b] / maxFreq) * (canvas.height - 12);
+          var animatedHeight = targetHeight * easeProgress;
+          var x = b * barWidth;
+          var y = canvas.height - animatedHeight;
+          ctx.fillRect(x, y, Math.max(1, barWidth - 0.5), animatedHeight);
+        }
+      }
+
+      if (progress < 1.0) {
+        animFrameId = requestAnimationFrame(animate);
+      } else {
+        btn.disabled = false;
+        btn.textContent = "Run Galton Board";
+        animFrameId = null;
       }
     }
+
+    animFrameId = requestAnimationFrame(animate);
   }
 
   document.getElementById("runBtn").onclick = runGaltonSimulation;
